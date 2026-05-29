@@ -1,15 +1,9 @@
 from pydantic_settings import BaseSettings
 from pathlib import Path
 
-# Finds .env relative to this file's location — not relative to
-# where you run the command from.
-# config.py lives at: backend/app/core/config.py
-# .env lives at:      AegisAPI/.env
-# parents[0] = core/
-# parents[1] = app/
-# parents[2] = backend/
-# parents[3] = AegisAPI/  ← this is where .env is
-ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+BASE_DIR = Path(__file__).resolve().parents[3]
+ENV_FILE = BASE_DIR / ".env"
+KEYS_DIR = Path(__file__).resolve().parent / "keys"
 
 
 class Settings(BaseSettings):
@@ -17,9 +11,21 @@ class Settings(BaseSettings):
     SYNC_DATABASE_URL: str
     APP_NAME: str = "AegisAPI"
 
+    JWT_ALGORITHM: str = "RS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
     class Config:
         env_file = str(ENV_FILE)
         env_file_encoding = "utf-8"
 
 
 settings = Settings()
+
+
+def get_private_key() -> str:
+    return (KEYS_DIR / "private.pem").read_text()
+
+
+def get_public_key() -> str:
+    return (KEYS_DIR / "public.pem").read_text()

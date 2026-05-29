@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 venv/
 .env
+backend/app/core/keys/private.pem
+backend/app/core/keys/public.pem
