@@ -6,8 +6,10 @@ from datetime import datetime
 import uuid
 
 from app.core.db import get_db
+from app.core.dependencies import get_current_user
 from app.models.traffic import TrafficEvent
 from app.models.audit import AuditLog
+from app.models.user import User
 from app.services.scoring import calculate_risk_score
 from app.services.policy import apply_policy
 
@@ -17,7 +19,8 @@ router = APIRouter()
 @router.post("/ingest")
 async def ingest_traffic(
     event: TrafficEvent,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     risk = calculate_risk_score(event)
     policy = apply_policy(risk)
@@ -68,6 +71,7 @@ async def ingest_traffic(
 @router.get("/logs")
 async def get_logs(
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     limit: int = Query(default=50, le=100),
     offset: int = Query(default=0, ge=0),
     user_id: Optional[str] = Query(default=None),
@@ -116,7 +120,8 @@ async def get_logs(
 @router.get("/logs/{log_id}")
 async def get_log_by_id(
     log_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     try:
         parsed_id = uuid.UUID(log_id)
