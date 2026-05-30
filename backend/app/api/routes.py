@@ -1,17 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
+from redis.asyncio import Redis
 from typing import Optional
 from datetime import datetime
 import uuid
 
 from app.core.db import get_db
+from app.core.redis import get_redis
 from app.core.dependencies import get_current_user
 from app.models.traffic import TrafficEvent
 from app.models.audit import AuditLog
 from app.models.user import User
 from app.services.scoring import calculate_risk_score
-from app.services.policy import apply_policy
+from app.services.trust import get_trust_score, update_trust_score, get_trust_action
 
 router = APIRouter()
 
@@ -20,10 +22,13 @@ router = APIRouter()
 async def ingest_traffic(
     event: TrafficEvent,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_user)
 ):
     risk = calculate_risk_score(event)
-    policy = apply_policy(risk)
+
+    trust_score = await update_trust_score(redis, event.user_id, risk["risk_score"])
+    policy = await get_trust_action(trust_score, risk["risk_score"])
 
     audit_entry = AuditLog(
         id=uuid.uuid4(),
@@ -59,12 +64,27 @@ async def ingest_traffic(
         },
         "analysis": {
             "risk_score": risk["risk_score"],
-            "risk_level": risk["risk_level"]
+            "risk_level": risk["risk_level"],
+            "trust_score": trust_score
         },
         "policy": {
             "action": policy["action"],
             "reason": policy["reason"]
         }
+    }
+
+
+@router.get("/trust/{user_id}")
+async def get_user_trust(
+    user_id: str,
+    redis: Redis = Depends(get_redis),
+    current_user: User = Depends(get_current_user)
+):
+    score = await get_trust_score(redis, user_id)
+    return {
+        "user_id": user_id,
+        "trust_score": score,
+        "trust_level": "HIGH" if score >= 0.7 else "MEDIUM" if score >= 0.4 else "LOW"
     }
 
 
@@ -88,7 +108,6 @@ async def get_logs(
         query = query.where(AuditLog.risk_level == risk_level.upper())
 
     query = query.offset(offset).limit(limit)
-
     result = await db.execute(query)
     logs = result.scalars().all()
 

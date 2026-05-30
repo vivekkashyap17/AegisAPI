@@ -9,7 +9,8 @@ from app.api.routes import router
 from app.api.auth import router as auth_router
 from app.core.db import engine, Base
 from app.core.config import settings
-from app.models import user  # noqa: F401 - ensures users table is created on startup
+from app.core.redis import connect_redis, disconnect_redis
+from app.models import user  # noqa: F401
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,12 +29,15 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
 
     logger.info("Database tables ready")
+    await connect_redis()
+    logger.info("Redis connected")
     logger.info(f"{settings.APP_NAME} is running")
 
     yield
 
     logger.info("Shutting down — disposing database connections...")
     await engine.dispose()
+    await disconnect_redis()
     logger.info("Shutdown complete")
 
 

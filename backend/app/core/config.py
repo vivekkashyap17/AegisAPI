@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    REDIS_URL: str = "redis://localhost:6379"
+
     class Config:
         env_file = str(ENV_FILE)
         env_file_encoding = "utf-8"
