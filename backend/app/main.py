@@ -50,9 +50,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Restrict CORS to known frontend origins — a wildcard with credentials is both
+# unsafe and rejected by browsers. Add your real frontend origin(s) here.
+ALLOWED_ORIGINS = [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,6 +83,7 @@ async def log_requests(request: Request, call_next):
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     import traceback
+    # Full detail goes to the server logs only — never to the client
     error_detail = traceback.format_exc()
     logger.error(f"Unhandled exception: {exc}")
     logger.error(error_detail)
@@ -83,7 +91,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "error": "Internal server error",
-            "message": str(exc)
+            "message": "An unexpected error occurred"
         }
     )
 
