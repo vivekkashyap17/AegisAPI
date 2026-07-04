@@ -6,3 +6,4 @@ backend/app/core/keys/private.pem
 backend/app/core/keys/public.pem
 CLAUDE.md
 *.pkl
+.pytest_cache/

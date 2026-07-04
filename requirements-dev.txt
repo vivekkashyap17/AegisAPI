@@ -1,0 +1,6 @@
+# Development / test dependencies (not needed to run the app in production)
+-r requirements.txt
+
+pytest==8.2.2
+pytest-asyncio==0.23.8
+fakeredis==2.23.5
