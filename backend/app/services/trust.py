@@ -55,7 +55,7 @@ async def get_trust_action(
         return {"action": "RATE_LIMIT", "reason": "Anomalous behavior detected"}
     elif trust_score < 0.5 and risk_score >= 60:
         return {"action": "BLOCK", "reason": "High risk with low trust"}
-    elif trust_score < 0.6 and risk_score >= 30:
+    elif trust_score < 0.6 and 30 <= risk_score < 60:
         return {"action": "RATE_LIMIT", "reason": "Moderate risk with reduced trust"}
     elif risk_score >= 60:
         return {"action": "BLOCK", "reason": "High risk detected"}
