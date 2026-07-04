@@ -14,6 +14,7 @@ from app.models.audit import AuditLog
 from app.models.user import User
 from app.services.scoring import calculate_risk_score
 from app.services.trust import get_trust_score, update_trust_score, get_trust_action
+from app.services.anomaly import analyze_event
 
 router = APIRouter()
 
@@ -26,9 +27,14 @@ async def ingest_traffic(
     current_user: User = Depends(get_current_user)
 ):
     risk = calculate_risk_score(event)
+    anomaly = await analyze_event(redis, event)
 
-    trust_score = await update_trust_score(redis, event.user_id, risk["risk_score"])
-    policy = await get_trust_action(trust_score, risk["risk_score"])
+    trust_score = await update_trust_score(
+        redis, event.user_id, risk["risk_score"], anomaly["anomaly_detected"]
+    )
+    policy = await get_trust_action(
+        trust_score, risk["risk_score"], anomaly["anomaly_detected"]
+    )
 
     audit_entry = AuditLog(
         id=uuid.uuid4(),
@@ -65,7 +71,10 @@ async def ingest_traffic(
         "analysis": {
             "risk_score": risk["risk_score"],
             "risk_level": risk["risk_level"],
-            "trust_score": trust_score
+            "trust_score": trust_score,
+            "anomaly_detected": anomaly["anomaly_detected"],
+            "anomaly_score": anomaly["anomaly_score"],
+            "model_ready": anomaly["model_ready"]
         },
         "policy": {
             "action": policy["action"],
