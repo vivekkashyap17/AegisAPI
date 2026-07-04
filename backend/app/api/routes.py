@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, func
 from redis.asyncio import Redis
 from typing import Optional
 from datetime import datetime
@@ -98,21 +98,29 @@ async def get_logs(
     action: Optional[str] = Query(default=None),
     risk_level: Optional[str] = Query(default=None),
 ):
-    query = select(AuditLog).order_by(desc(AuditLog.timestamp))
-
+    filters = []
     if user_id:
-        query = query.where(AuditLog.user_id == user_id)
+        filters.append(AuditLog.user_id == user_id)
     if action:
-        query = query.where(AuditLog.action == action.upper())
+        filters.append(AuditLog.action == action.upper())
     if risk_level:
-        query = query.where(AuditLog.risk_level == risk_level.upper())
+        filters.append(AuditLog.risk_level == risk_level.upper())
 
+    count_query = select(func.count()).select_from(AuditLog)
+    if filters:
+        count_query = count_query.where(*filters)
+    total = (await db.execute(count_query)).scalar_one()
+
+    query = select(AuditLog).order_by(desc(AuditLog.timestamp))
+    if filters:
+        query = query.where(*filters)
     query = query.offset(offset).limit(limit)
     result = await db.execute(query)
     logs = result.scalars().all()
 
     return {
-        "total": len(logs),
+        "total": total,
+        "count": len(logs),
         "offset": offset,
         "limit": limit,
         "logs": [

@@ -10,5 +10,5 @@ class TrafficEvent(BaseModel):
     response_time: float
     status_code: int
     ip_address: str
-    timestamp: datetime
+    timestamp: Optional[datetime] = None  # client-supplied, ignored for auditing (server uses receive time)
     payload_size: Optional[int] = 0
