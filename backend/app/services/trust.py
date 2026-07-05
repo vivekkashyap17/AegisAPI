@@ -1,5 +1,7 @@
 from redis.asyncio import Redis
 
+from app.services.policy_rules import DEFAULT_RULES
+
 TRUST_SCORE_PREFIX = "trust:"
 DEFAULT_TRUST_SCORE = 0.7
 TRUST_SCORE_TTL = 86400  # 24 hours in seconds
@@ -21,21 +23,23 @@ async def set_trust_score(redis: Redis, user_id: str, score: float):
 
 
 async def update_trust_score(
-    redis: Redis, user_id: str, risk_score: int, is_anomaly: bool = False
+    redis: Redis, user_id: str, risk_score: int, is_anomaly: bool = False,
+    rules: dict | None = None,
 ) -> float:
+    rules = rules or DEFAULT_RULES
     current = await get_trust_score(redis, user_id)
 
     # High risk drops trust, low risk builds it
-    if risk_score >= 60:
-        delta = -0.15
-    elif risk_score >= 30:
-        delta = -0.05
+    if risk_score >= rules["risk_high"]:
+        delta = rules["delta_high_risk"]
+    elif risk_score >= rules["risk_moderate"]:
+        delta = rules["delta_moderate_risk"]
     else:
-        delta = +0.02
+        delta = rules["delta_low_risk"]
 
     # An anomalous request is penalized on top of its risk-based delta
     if is_anomaly:
-        delta -= 0.20
+        delta += rules["anomaly_penalty"]
 
     new_score = current + delta
     await set_trust_score(redis, user_id, new_score)
@@ -43,23 +47,25 @@ async def update_trust_score(
 
 
 async def get_trust_action(
-    trust_score: float, risk_score: int, is_anomaly: bool = False
+    trust_score: float, risk_score: int, is_anomaly: bool = False,
+    rules: dict | None = None,
 ) -> dict:
-    if trust_score < 0.3:
+    rules = rules or DEFAULT_RULES
+    if trust_score < rules["trust_critical"]:
         return {"action": "QUARANTINE", "reason": "Trust score critically low"}
-    elif is_anomaly and risk_score >= 60:
+    elif is_anomaly and risk_score >= rules["risk_high"]:
         return {"action": "QUARANTINE", "reason": "Anomalous behavior with high risk"}
-    elif is_anomaly and risk_score >= 30:
+    elif is_anomaly and risk_score >= rules["risk_moderate"]:
         return {"action": "BLOCK", "reason": "Anomalous behavior with elevated risk"}
     elif is_anomaly:
         return {"action": "RATE_LIMIT", "reason": "Anomalous behavior detected"}
-    elif trust_score < 0.5 and risk_score >= 60:
+    elif trust_score < rules["trust_low"] and risk_score >= rules["risk_high"]:
         return {"action": "BLOCK", "reason": "High risk with low trust"}
-    elif trust_score < 0.6 and 30 <= risk_score < 60:
+    elif trust_score < rules["trust_reduced"] and rules["risk_moderate"] <= risk_score < rules["risk_high"]:
         return {"action": "RATE_LIMIT", "reason": "Moderate risk with reduced trust"}
-    elif risk_score >= 60:
+    elif risk_score >= rules["risk_high"]:
         return {"action": "BLOCK", "reason": "High risk detected"}
-    elif risk_score >= 30:
+    elif risk_score >= rules["risk_moderate"]:
         return {"action": "THROTTLE", "reason": "Moderate risk detected"}
     else:
         return {"action": "ALLOW", "reason": "Normal traffic"}

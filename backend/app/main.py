@@ -9,7 +9,8 @@ from app.api.routes import router
 from app.api.auth import router as auth_router
 from app.core.db import engine, Base
 from app.core.config import settings
-from app.core.redis import connect_redis, disconnect_redis
+from app.core.redis import connect_redis, disconnect_redis, get_redis
+from app.services.policy_rules import seed_default_rules
 from app.models import user  # noqa: F401
 
 logging.basicConfig(
@@ -31,6 +32,8 @@ async def lifespan(app: FastAPI):
     logger.info("Database tables ready")
     await connect_redis()
     logger.info("Redis connected")
+    await seed_default_rules(await get_redis())
+    logger.info("Policy rules seeded")
     logger.info(f"{settings.APP_NAME} is running")
 
     yield

@@ -1,20 +1,24 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
 from redis.asyncio import Redis
+from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 import uuid
 
 from app.core.db import get_db
 from app.core.redis import get_redis
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_admin
 from app.models.traffic import TrafficEvent
 from app.models.audit import AuditLog
 from app.models.user import User
 from app.services.scoring import calculate_risk_score
 from app.services.trust import get_trust_score, update_trust_score, get_trust_action
 from app.services.anomaly import analyze_event
+from app.services.policy_rules import get_policy_rules, update_policy_rules
+from app.services.quarantine import get_quarantine, quarantine_user, release_user
 
 router = APIRouter()
 
@@ -26,15 +30,60 @@ async def ingest_traffic(
     redis: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_user)
 ):
+    # Enforcement: if the subject is already quarantined, reject up front —
+    # don't score the event or touch its trust score. The rejected attempt is
+    # still audited so the trail shows a quarantined subject kept trying.
+    quarantine = await get_quarantine(redis, event.user_id)
+    if quarantine:
+        risk = calculate_risk_score(event)
+        rejection = AuditLog(
+            id=uuid.uuid4(),
+            user_id=event.user_id,
+            endpoint=event.endpoint,
+            method=event.method,
+            response_time=event.response_time,
+            status_code=event.status_code,
+            ip_address=event.ip_address,
+            payload_size=event.payload_size or 0,
+            risk_score=risk["risk_score"],
+            risk_level=risk["risk_level"],
+            action="QUARANTINE",
+            reason="Subject is quarantined; request rejected",
+            timestamp=datetime.utcnow()
+        )
+        db.add(rejection)
+        await db.flush()
+        return JSONResponse(
+            status_code=403,
+            content={
+                "request_id": str(rejection.id),
+                "timestamp": rejection.timestamp.isoformat(),
+                "status": "rejected",
+                "policy": {
+                    "action": "QUARANTINE",
+                    "reason": "Subject is quarantined; request rejected",
+                },
+                "retry_after": quarantine.get("retry_after"),
+            }
+        )
+
     risk = calculate_risk_score(event)
     anomaly = await analyze_event(redis, event)
+    rules = await get_policy_rules(redis)
 
     trust_score = await update_trust_score(
-        redis, event.user_id, risk["risk_score"], anomaly["anomaly_detected"]
+        redis, event.user_id, risk["risk_score"], anomaly["anomaly_detected"], rules
     )
     policy = await get_trust_action(
-        trust_score, risk["risk_score"], anomaly["anomaly_detected"]
+        trust_score, risk["risk_score"], anomaly["anomaly_detected"], rules
     )
+
+    # A fresh QUARANTINE verdict registers the subject so subsequent requests
+    # are rejected by the enforcement check above until the TTL expires.
+    if policy["action"] == "QUARANTINE":
+        await quarantine_user(
+            redis, event.user_id, rules["quarantine_ttl"], policy["reason"]
+        )
 
     audit_entry = AuditLog(
         id=uuid.uuid4(),
@@ -187,3 +236,61 @@ async def get_log_by_id(
         "action": log.action,
         "reason": log.reason
     }
+
+
+class PolicyRulesUpdate(BaseModel):
+    """Partial update of the policy-rule set — omit any field to leave it unchanged."""
+    risk_high: Optional[int] = None
+    risk_moderate: Optional[int] = None
+    trust_critical: Optional[float] = None
+    trust_low: Optional[float] = None
+    trust_reduced: Optional[float] = None
+    delta_high_risk: Optional[float] = None
+    delta_moderate_risk: Optional[float] = None
+    delta_low_risk: Optional[float] = None
+    anomaly_penalty: Optional[float] = None
+    quarantine_ttl: Optional[int] = None
+
+
+@router.get("/policy")
+async def read_policy(
+    redis: Redis = Depends(get_redis),
+    _admin: User = Depends(require_admin),
+):
+    return {"rules": await get_policy_rules(redis)}
+
+
+@router.put("/policy")
+async def write_policy(
+    payload: PolicyRulesUpdate,
+    redis: Redis = Depends(get_redis),
+    _admin: User = Depends(require_admin),
+):
+    updates = payload.model_dump(exclude_none=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No rule fields provided")
+    try:
+        rules = await update_policy_rules(redis, updates)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"rules": rules}
+
+
+@router.get("/quarantine/{user_id}")
+async def read_quarantine(
+    user_id: str,
+    redis: Redis = Depends(get_redis),
+    _admin: User = Depends(require_admin),
+):
+    info = await get_quarantine(redis, user_id)
+    return {"user_id": user_id, "quarantined": info is not None, "info": info}
+
+
+@router.delete("/quarantine/{user_id}")
+async def clear_quarantine(
+    user_id: str,
+    redis: Redis = Depends(get_redis),
+    _admin: User = Depends(require_admin),
+):
+    released = await release_user(redis, user_id)
+    return {"user_id": user_id, "released": released}
