@@ -20,6 +20,8 @@ DEFAULT_RULES = {
     "trust_critical": 0.3,
     "trust_low": 0.5,
     "trust_reduced": 0.6,
+    # trust a subject is restored to (at minimum) after a successful step-up re-auth
+    "step_up_trust": 0.5,
     # per-request trust deltas
     "delta_high_risk": -0.15,
     "delta_moderate_risk": -0.05,

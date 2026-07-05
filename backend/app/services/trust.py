@@ -46,6 +46,15 @@ async def update_trust_score(
     return round(max(0.0, min(1.0, new_score)), 4)
 
 
+async def restore_trust(redis: Redis, user_id: str, baseline: float) -> float:
+    """Raise a subject's trust up to `baseline` after a successful step-up re-auth.
+    Never lowers an already-higher score — recovery can only help."""
+    current = await get_trust_score(redis, user_id)
+    new_score = max(current, baseline)
+    await set_trust_score(redis, user_id, new_score)
+    return round(new_score, 4)
+
+
 async def get_trust_action(
     trust_score: float, risk_score: int, is_anomaly: bool = False,
     rules: dict | None = None,

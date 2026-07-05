@@ -1,5 +1,6 @@
 from app.services.trust import (
-    get_trust_score, set_trust_score, update_trust_score, DEFAULT_TRUST_SCORE,
+    get_trust_score, set_trust_score, update_trust_score, restore_trust,
+    DEFAULT_TRUST_SCORE,
 )
 
 
@@ -49,3 +50,15 @@ async def test_trust_floored_at_zero(fake_redis):
 async def test_trust_capped_at_one(fake_redis):
     await set_trust_score(fake_redis, "u", 0.99)
     assert await update_trust_score(fake_redis, "u", risk_score=0) == 1.0
+
+
+async def test_restore_trust_raises_low_trust_to_baseline(fake_redis):
+    await set_trust_score(fake_redis, "u", 0.10)
+    assert await restore_trust(fake_redis, "u", 0.5) == 0.5
+    assert await get_trust_score(fake_redis, "u") == 0.5
+
+
+async def test_restore_trust_never_lowers_higher_trust(fake_redis):
+    await set_trust_score(fake_redis, "u", 0.9)
+    assert await restore_trust(fake_redis, "u", 0.5) == 0.9
+    assert await get_trust_score(fake_redis, "u") == 0.9

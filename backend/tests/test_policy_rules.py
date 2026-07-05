@@ -56,6 +56,11 @@ async def test_custom_rules_change_decision(fake_redis):
     assert (await get_trust_action(0.9, 40, False))["action"] == "THROTTLE"
 
 
+async def test_step_up_trust_is_configurable(fake_redis):
+    rules = await update_policy_rules(fake_redis, {"step_up_trust": 0.4})
+    assert rules["step_up_trust"] == 0.4
+
+
 async def test_custom_anomaly_penalty_applied(fake_redis):
     await set_trust_score(fake_redis, "u", 0.70)
     rules = await update_policy_rules(fake_redis, {"anomaly_penalty": -0.50})

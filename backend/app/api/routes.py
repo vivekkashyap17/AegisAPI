@@ -245,6 +245,7 @@ class PolicyRulesUpdate(BaseModel):
     trust_critical: Optional[float] = None
     trust_low: Optional[float] = None
     trust_reduced: Optional[float] = None
+    step_up_trust: Optional[float] = None
     delta_high_risk: Optional[float] = None
     delta_moderate_risk: Optional[float] = None
     delta_low_risk: Optional[float] = None
