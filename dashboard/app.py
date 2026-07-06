@@ -7,7 +7,7 @@ import streamlit as st
 
 import api
 import ui
-from views import analytics, logs, monitor, overview
+from views import admin, analytics, logs, monitor, overview
 
 st.set_page_config(
     page_title="AegisAPI Console",
@@ -85,4 +85,6 @@ else:
         st.Page(logs.render, title="Audit Logs", icon="🗒️", url_path="logs"),
         st.Page(analytics.render, title="Analytics", icon="📊", url_path="analytics"),
     ]
+    if st.session_state.get("role") == "admin":
+        pages.append(st.Page(admin.render, title="Admin", icon="⚙️", url_path="admin"))
     st.navigation(pages).run()

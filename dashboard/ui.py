@@ -69,6 +69,32 @@ def fetch(path: str, params: dict | None = None):
         return None
 
 
+def put(path: str, json: dict):
+    """PUT with the session token; same 401/error handling as fetch()."""
+    token = st.session_state.get("token")
+    try:
+        return api.put(path, token, json=json)
+    except api.APIError as exc:
+        if exc.status == 401:
+            clear_session()
+            st.rerun()
+        st.error(f"API error ({exc.status}): {exc.message}")
+        return None
+
+
+def delete(path: str):
+    """DELETE with the session token; same 401/error handling as fetch()."""
+    token = st.session_state.get("token")
+    try:
+        return api.delete(path, token)
+    except api.APIError as exc:
+        if exc.status == 401:
+            clear_session()
+            st.rerun()
+        st.error(f"API error ({exc.status}): {exc.message}")
+        return None
+
+
 def _fmt_time(ts: str) -> str:
     return ts[:19].replace("T", " ")
 
