@@ -1,0 +1,66 @@
+# AegisAPI stack — Phase 10, slice 1: app + Postgres + Redis on a private network.
+# Nginx, Prometheus, Grafana (slice 2) and Kafka (slice 3) join this file next.
+#
+# Bring it up from the repo root:  docker compose up --build
+# Services reach each other by name over the default compose network — no more
+# localhost:5433 / host.docker.internal hops. Postgres and Redis are NOT
+# published to the host: only the app (and later Nginx) is reachable from outside.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aegis
+      POSTGRES_PASSWORD: aegis
+      POSTGRES_DB: aegisapi
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aegis -d aegisapi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      # Hosts are now compose service names, resolved on the private network.
+      DATABASE_URL: postgresql+asyncpg://aegis:aegis@postgres:5432/aegisapi
+      SYNC_DATABASE_URL: postgresql://aegis:aegis@postgres:5432/aegisapi
+      REDIS_URL: redis://redis:6379
+      APP_NAME: AegisAPI
+      JWT_ALGORITHM: RS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+      REFRESH_TOKEN_EXPIRE_DAYS: "7"
+    volumes:
+      # RS256 keys stay out of the image — mounted read-only from the host.
+      - ./backend/app/core/keys:/app/app/core/keys:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  pg-data:

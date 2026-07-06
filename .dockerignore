@@ -1,0 +1,20 @@
+# Keep the build context small and secrets/artifacts out of the image.
+**/venv/
+**/__pycache__/
+**/*.pyc
+.git/
+.gitignore
+**/.pytest_cache/
+
+# Secrets & generated artifacts — keys are mounted at runtime, the model
+# regenerates itself, certs belong to the gateway.
+backend/app/core/keys/
+backend/app/services/*.pkl
+nginx/certs/
+
+# Not needed inside the app image.
+frontend/
+monitoring/
+nginx/
+*.md
+claude.md
