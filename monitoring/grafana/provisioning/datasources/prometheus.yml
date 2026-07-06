@@ -7,9 +7,8 @@ datasources:
     type: prometheus
     uid: aegis-prometheus     # referenced by the provisioned dashboard's panels
     access: proxy
-    # Grafana runs in a container; Prometheus is published on the host at :9090.
-    # Reachable via host.docker.internal when Grafana is started with
-    # --add-host=host.docker.internal:host-gateway.
-    url: http://host.docker.internal:9090
+    # In the Phase 10 docker-compose stack, Prometheus is the service `prometheus`
+    # on the shared network — reachable by name, no host hop.
+    url: http://prometheus:9090
     isDefault: true
     editable: true

@@ -1,10 +1,13 @@
-# AegisAPI stack — Phase 10, slice 1: app + Postgres + Redis on a private network.
-# Nginx, Prometheus, Grafana (slice 2) and Kafka (slice 3) join this file next.
+# AegisAPI stack — Phase 10.
+#   slice 1: app + Postgres + Redis on a private network.
+#   slice 2: Nginx gateway + Prometheus + Grafana folded in (this slice).
+#   slice 3: Kafka event streaming joins next.
 #
 # Bring it up from the repo root:  docker compose up --build
 # Services reach each other by name over the default compose network — no more
-# localhost:5433 / host.docker.internal hops. Postgres and Redis are NOT
-# published to the host: only the app (and later Nginx) is reachable from outside.
+# localhost:5433 / host.docker.internal hops. Only the edge (Nginx) and the ops
+# UIs (Prometheus, Grafana) are published to the host; the app, Postgres, and
+# Redis are internal-only — all app traffic is forced through the gateway.
 
 services:
   postgres:
@@ -47,8 +50,7 @@ services:
     volumes:
       # RS256 keys stay out of the image — mounted read-only from the host.
       - ./backend/app/core/keys:/app/app/core/keys:ro
-    ports:
-      - "8000:8000"
+    # No host port: the app is internal-only, reached through the Nginx gateway.
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,5 +64,51 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  # Edge gateway (Phase 9): TLS termination, rate limiting, IP denylist.
+  # Now proxies to the `app` service by name instead of host.docker.internal.
+  nginx:
+    image: nginx:latest
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/denylist.conf:/etc/nginx/denylist.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    restart: unless-stopped
+
+  # Observability (Phase 8): scrapes app:8000/metrics, evaluates alert rules.
+  prometheus:
+    image: prom/prometheus:latest
+    depends_on:
+      - app
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+
 volumes:
   pg-data:
+  prometheus-data:
+  grafana-data:

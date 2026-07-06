@@ -8,9 +8,12 @@ is the foundation for network-level defenses added in later slices:
 - **Slice 2:** network-level rate limiting + IP reputation denylist.
 - **Slice 3 (this):** TLS termination (HTTPS) + hardened security headers.
 
-Nginx runs as a standalone container for now, matching how `aegis-postgres`,
-`aegis-redis`, and `aegis-prometheus` are run. It folds into `docker-compose`
-at Phase 10.
+> **Phase 10 update:** Nginx is now part of the root `docker-compose.yml` — run
+> the whole stack with `docker compose up` from the repo root. The upstream now
+> targets the `app` compose service by name (`app:8000`) instead of
+> `host.docker.internal`, so the standalone `docker run` command below only works
+> outside compose (with the upstream pointed back at the host) and is kept for
+> reference.
 
 ## Prerequisites
 

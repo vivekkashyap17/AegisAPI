@@ -3,8 +3,12 @@
 Prometheus scrapes the AegisAPI app's `/metrics` endpoint (added in slice 1) and
 stores the time series. Grafana dashboards + alerts sit on top (slice 3).
 
-Prometheus runs as a standalone container for now, matching how `aegis-postgres`
-and `aegis-redis` are run. It folds into `docker-compose` at Phase 10.
+> **Phase 10 update:** Prometheus and Grafana are now part of the root
+> `docker-compose.yml` — run the whole stack with `docker compose up` from the
+> repo root instead of the standalone `docker run` commands below. The scrape
+> target and datasource URL now use compose service names (`app:8000`,
+> `prometheus:9090`), so the standalone commands here are superseded and kept
+> only for reference.
 
 ## Prerequisites
 

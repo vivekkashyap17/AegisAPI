@@ -1,12 +1,8 @@
-# Prometheus scrape configuration for AegisAPI (Phase 8, slice 2).
+# Prometheus scrape configuration for AegisAPI.
 #
-# Prometheus runs as a container and scrapes the FastAPI app's /metrics endpoint.
-# The app runs on the host (uvicorn), so the target is host.docker.internal,
-# which resolves to the host gateway when the container is started with
-#   --add-host=host.docker.internal:host-gateway
-#
-# When the app is later containerised (Phase 10, docker-compose), swap the
-# target to the app's service name (e.g. "backend:8000") on the shared network.
+# Prometheus scrapes the FastAPI app's /metrics endpoint. In the Phase 10
+# docker-compose stack the app is a service named `app` on the shared network,
+# so the target is `app:8000` (resolved by compose DNS — no host hop needed).
 
 global:
   scrape_interval: 15s      # how often to pull /metrics
@@ -21,7 +17,7 @@ scrape_configs:
   - job_name: aegisapi
     metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:8000"]
+      - targets: ["app:8000"]
         labels:
           service: aegisapi
 
