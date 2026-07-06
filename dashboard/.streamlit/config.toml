@@ -1,10 +1,10 @@
-# AegisAPI console — dark ops-console theme (Phase 11, slice 1).
+# AegisAPI console — "Slate & Sky" theme (Phase 11).
 [theme]
 base = "dark"
-primaryColor = "#2ad3bf"              # teal accent (perimeter identity)
-backgroundColor = "#0a1418"           # near-black petrol ground
-secondaryBackgroundColor = "#11242a"  # panels / inputs
-textColor = "#e4efed"
+primaryColor = "#38bdf8"              # sky-blue accent
+backgroundColor = "#0f172a"           # slate-900 ground
+secondaryBackgroundColor = "#1e293b"  # slate-800 panels / inputs
+textColor = "#e2e8f0"                 # slate-200
 
 [server]
 headless = true

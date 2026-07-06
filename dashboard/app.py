@@ -26,8 +26,9 @@ def init_state() -> None:
 def login_view() -> None:
     left, mid, right = st.columns([1, 1.3, 1])
     with mid:
+        st.write("")
         st.markdown("<div class='aegis-brand'>AEGISAPI</div>", unsafe_allow_html=True)
-        st.markdown("## 🛡️ Security Operations Console")
+        st.markdown("## Security Operations Console")
         st.markdown(
             "<div class='aegis-sub'>Sign in to monitor traffic, trust, and policy decisions.</div>",
             unsafe_allow_html=True,
@@ -64,7 +65,7 @@ def sidebar() -> None:
         role = (st.session_state.get("role") or "").upper()
         st.markdown(
             f"<span class='aegis-pill'>{role}</span>&nbsp;&nbsp;"
-            f"<span style='color:#a7c0be'>{st.session_state.get('username')}</span>",
+            f"<span style='color:#94a3b8'>{st.session_state.get('username')}</span>",
             unsafe_allow_html=True,
         )
         st.write("")

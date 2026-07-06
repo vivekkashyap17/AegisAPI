@@ -11,37 +11,57 @@ import api
 
 # action -> (text colour, background tint) for the ops-console severity coding
 ACTION_STYLE = {
-    "ALLOW":      ("#45c98a", "rgba(69,201,138,.12)"),
-    "THROTTLE":   ("#e0a942", "rgba(224,169,66,.12)"),
-    "RATE_LIMIT": ("#e0873f", "rgba(224,135,63,.12)"),
-    "BLOCK":      ("#ef6b64", "rgba(239,107,100,.14)"),
-    "QUARANTINE": ("#f2557a", "rgba(242,85,122,.16)"),
+    "ALLOW":      ("#34d399", "rgba(52,211,153,.12)"),
+    "THROTTLE":   ("#fbbf24", "rgba(251,191,36,.12)"),
+    "RATE_LIMIT": ("#fb923c", "rgba(251,146,60,.12)"),
+    "BLOCK":      ("#f87171", "rgba(248,113,113,.14)"),
+    "QUARANTINE": ("#f472b6", "rgba(244,114,182,.16)"),
 }
-RISK_STYLE = {"LOW": "#45c98a", "MEDIUM": "#e0a942", "HIGH": "#ef6b64"}
+RISK_STYLE = {"LOW": "#34d399", "MEDIUM": "#fbbf24", "HIGH": "#f87171"}
 
 _SESSION_KEYS = ("token", "refresh_token", "username", "role")
 
 CSS = """
 <style>
-  .block-container { padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1220px; }
+  /* Streamlit floats a header bar over the page top; make it transparent and
+     push content down so the AEGISAPI lockup is never clipped by it. */
+  [data-testid="stHeader"] { background: transparent; }
+  .block-container { padding-top: 3.6rem; padding-bottom: 3rem; max-width: 1200px; }
 
+  /* metric cards */
   [data-testid="stMetric"] {
-    background: #11242a; border: 1px solid #1d3a3e; border-radius: 12px; padding: 14px 18px;
+    background: #1e293b; border: 1px solid #334155; border-radius: 14px;
+    padding: 16px 20px; transition: border-color .15s ease;
   }
-  [data-testid="stMetricLabel"] p { color: #6d8785; font-size: .76rem;
-    letter-spacing: .06em; text-transform: uppercase; }
+  [data-testid="stMetric"]:hover { border-color: #3f5a7d; }
+  [data-testid="stMetricLabel"] p { color: #94a3b8; font-size: .74rem;
+    letter-spacing: .07em; text-transform: uppercase; }
+  [data-testid="stMetricValue"] { color: #f1f5f9; }
 
-  .aegis-brand { font-family: ui-monospace, monospace; letter-spacing: .2em;
-    color: #2ad3bf; font-size: .82rem; text-transform: uppercase; font-weight: 600; }
-  .aegis-sub { color: #6d8785; font-family: ui-monospace, monospace;
-    font-size: .8rem; letter-spacing: .04em; }
-  .aegis-pill { display: inline-block; padding: 3px 11px; border-radius: 999px;
-    border: 1px solid #1d3a3e; font-family: ui-monospace, monospace; font-size: .72rem;
-    letter-spacing: .08em; color: #2ad3bf; background: rgba(42,211,191,.07); }
+  /* brand lockup — line-height + padding so the caps are never cut off */
+  .aegis-brand { display: inline-flex; align-items: center; gap: .45rem;
+    font-family: ui-monospace, "SFMono-Regular", monospace; letter-spacing: .22em;
+    color: #38bdf8; font-size: .9rem; text-transform: uppercase; font-weight: 700;
+    line-height: 1.7; padding: 2px 0 4px; }
+  .aegis-brand::before { content: "🛡"; letter-spacing: 0; font-size: 1.05rem; }
+  .aegis-sub { color: #94a3b8; font-family: ui-monospace, monospace;
+    font-size: .8rem; letter-spacing: .03em; }
+  .aegis-pill { display: inline-block; padding: 3px 12px; border-radius: 999px;
+    border: 1px solid #38bdf8; font-family: ui-monospace, monospace; font-size: .7rem;
+    letter-spacing: .09em; color: #38bdf8; background: rgba(56,189,248,.10); }
 
-  h1, h2, h3 { letter-spacing: -.01em; }
-  div[data-testid="stForm"] { border: 1px solid #1d3a3e; border-radius: 14px;
-    background: #0f2127; padding: 8px 6px; }
+  /* sidebar */
+  [data-testid="stSidebar"] { border-right: 1px solid #1e293b; }
+  [data-testid="stSidebar"] > div:first-child { padding-top: 1.6rem; }
+
+  h1, h2, h3 { letter-spacing: -.01em; color: #f1f5f9; }
+
+  /* forms as cards */
+  div[data-testid="stForm"] { border: 1px solid #334155; border-radius: 16px;
+    background: #172033; padding: 12px 16px 6px; }
+
+  .stButton > button, .stFormSubmitButton > button { border-radius: 10px; }
+  [data-testid="stDataFrame"] { border-radius: 12px; }
 </style>
 """
 
