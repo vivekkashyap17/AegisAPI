@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 import time
 import logging
 
@@ -119,3 +120,10 @@ async def health_check():
         "status": "healthy",
         "app": settings.APP_NAME
     }
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus scrape endpoint — exposes the app's metrics in text format.
+    Left unauthenticated by convention; expose it only on the internal network."""
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)

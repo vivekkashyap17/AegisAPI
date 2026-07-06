@@ -19,6 +19,7 @@ from app.services.trust import get_trust_score, update_trust_score, get_trust_ac
 from app.services.anomaly import analyze_event
 from app.services.policy_rules import get_policy_rules, update_policy_rules
 from app.services.quarantine import get_quarantine, quarantine_user, release_user
+from app.services.metrics import record_ingest, record_rejection, record_policy_reload
 
 router = APIRouter()
 
@@ -53,6 +54,7 @@ async def ingest_traffic(
         )
         db.add(rejection)
         await db.flush()
+        record_rejection(risk["risk_level"], risk["risk_score"])
         return JSONResponse(
             status_code=403,
             content={
@@ -103,6 +105,11 @@ async def ingest_traffic(
 
     db.add(audit_entry)
     await db.flush()
+
+    record_ingest(
+        policy["action"], risk["risk_level"], risk["risk_score"],
+        trust_score, anomaly["anomaly_detected"],
+    )
 
     return {
         "request_id": str(audit_entry.id),
@@ -274,6 +281,7 @@ async def write_policy(
         rules = await update_policy_rules(redis, updates)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    record_policy_reload()
     return {"rules": rules}
 
 
