@@ -1,60 +1,26 @@
-"""AegisAPI Security Operations Console — Phase 11, slice 1 (foundation).
+"""AegisAPI Security Operations Console — Phase 11.
 
-Login + session-held JWT + an authenticated home. Monitoring, log browsing,
-analytics, and admin controls arrive in slices 2-3.
+  slice 1: foundation — login + dark ops-console theme.
+  slice 2: monitoring — live monitor, audit log browser, analytics (this slice).
 """
 import streamlit as st
 
 import api
+import ui
+from views import analytics, logs, monitor, overview
 
 st.set_page_config(
     page_title="AegisAPI Console",
     page_icon="🛡️",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="auto",
 )
-
-CSS = """
-<style>
-  .block-container { padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1180px; }
-
-  /* metric tiles as ops-console panels */
-  [data-testid="stMetric"] {
-    background: #11242a;
-    border: 1px solid #1d3a3e;
-    border-radius: 12px;
-    padding: 16px 18px;
-  }
-  [data-testid="stMetricLabel"] p { color: #6d8785; font-size: .78rem;
-    letter-spacing: .06em; text-transform: uppercase; }
-
-  /* brand + pills */
-  .aegis-brand { font-family: ui-monospace, monospace; letter-spacing: .2em;
-    color: #2ad3bf; font-size: .82rem; text-transform: uppercase; font-weight: 600; }
-  .aegis-sub { color: #6d8785; font-family: ui-monospace, monospace;
-    font-size: .8rem; letter-spacing: .04em; }
-  .aegis-pill { display: inline-block; padding: 3px 11px; border-radius: 999px;
-    border: 1px solid #1d3a3e; font-family: ui-monospace, monospace; font-size: .72rem;
-    letter-spacing: .08em; color: #2ad3bf; background: rgba(42,211,191,.07); }
-
-  h1, h2, h3 { letter-spacing: -.01em; }
-  div[data-testid="stForm"] { border: 1px solid #1d3a3e; border-radius: 14px;
-    background: #0f2127; padding: 8px 4px; }
-</style>
-"""
-st.markdown(CSS, unsafe_allow_html=True)
-
-_SESSION_KEYS = ("token", "refresh_token", "username", "role")
+ui.inject_css()
 
 
 def init_state() -> None:
-    for key in _SESSION_KEYS:
+    for key in ("token", "refresh_token", "username", "role"):
         st.session_state.setdefault(key, None)
-
-
-def logout() -> None:
-    for key in _SESSION_KEYS:
-        st.session_state[key] = None
 
 
 def login_view() -> None:
@@ -90,61 +56,33 @@ def login_view() -> None:
                     st.error(f"Login failed ({exc.status}): {exc.message}")
 
 
-def top_bar() -> None:
-    left, right = st.columns([3, 1])
-    with left:
+def sidebar() -> None:
+    with st.sidebar:
+        st.markdown("<div class='aegis-brand'>AEGISAPI</div>", unsafe_allow_html=True)
+        st.markdown("<div class='aegis-sub'>Security Operations Console</div>", unsafe_allow_html=True)
+        st.divider()
+        role = (st.session_state.get("role") or "").upper()
         st.markdown(
-            "<span class='aegis-brand'>AEGISAPI</span>"
-            "<span class='aegis-sub'>&nbsp;&nbsp;·&nbsp;&nbsp;Security Operations Console</span>",
-            unsafe_allow_html=True,
-        )
-    with right:
-        role = (st.session_state.role or "").upper()
-        st.markdown(
-            f"<div style='text-align:right; margin-bottom:6px'>"
             f"<span class='aegis-pill'>{role}</span>&nbsp;&nbsp;"
-            f"<span style='color:#a7c0be'>{st.session_state.username}</span></div>",
+            f"<span style='color:#a7c0be'>{st.session_state.get('username')}</span>",
             unsafe_allow_html=True,
         )
+        st.write("")
         if st.button("Log out", use_container_width=True):
-            logout()
+            ui.clear_session()
             st.rerun()
-
-
-def home_view() -> None:
-    top_bar()
-    st.divider()
-
-    total = None
-    api_ok = True
-    try:
-        logs = api.get("/logs", st.session_state.token, params={"limit": 1})
-        total = logs.get("total", 0)
-    except api.APIError as exc:
-        if exc.status == 401:
-            logout()
-            st.rerun()
-        api_ok = False
-        st.error(f"API error: {exc.message}")
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Audit events", f"{total:,}" if total is not None else "—")
-    c2.metric("Your role", (st.session_state.role or "—").upper())
-    c3.metric("API", "Connected" if api_ok else "Unreachable")
-
-    st.divider()
-    st.subheader("Console")
-    st.info(
-        "Foundation ready — authenticated and connected to the API. Coming next:\n\n"
-        "- **Live threat monitor** — decisions streaming in\n"
-        "- **Audit log browser** — search & filter\n"
-        "- **Trust & analytics** — charts\n"
-        "- **Admin controls** — policy rules & quarantine"
-    )
+        st.divider()
 
 
 init_state()
-if st.session_state.token:
-    home_view()
-else:
+if not st.session_state.token:
     login_view()
+else:
+    sidebar()
+    pages = [
+        st.Page(overview.render, title="Overview", icon="🛰️", url_path="overview", default=True),
+        st.Page(monitor.render, title="Live Monitor", icon="📡", url_path="monitor"),
+        st.Page(logs.render, title="Audit Logs", icon="🗒️", url_path="logs"),
+        st.Page(analytics.render, title="Analytics", icon="📊", url_path="analytics"),
+    ]
+    st.navigation(pages).run()
