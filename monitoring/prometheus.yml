@@ -10,7 +10,11 @@
 
 global:
   scrape_interval: 15s      # how often to pull /metrics
-  evaluation_interval: 15s  # how often to evaluate alert rules (added in slice 3)
+  evaluation_interval: 15s  # how often to evaluate alert rules
+
+# Alerting rules (slice 3). Mounted into the container at this path.
+rule_files:
+  - /etc/prometheus/alerts.yml
 
 scrape_configs:
   # The AegisAPI application itself.

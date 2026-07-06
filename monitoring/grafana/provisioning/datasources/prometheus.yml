@@ -1,0 +1,15 @@
+# Grafana datasource provisioning — wires Grafana to Prometheus automatically
+# on startup so no manual clicking is needed. (Phase 8, slice 3.)
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: aegis-prometheus     # referenced by the provisioned dashboard's panels
+    access: proxy
+    # Grafana runs in a container; Prometheus is published on the host at :9090.
+    # Reachable via host.docker.internal when Grafana is started with
+    # --add-host=host.docker.internal:host-gateway.
+    url: http://host.docker.internal:9090
+    isDefault: true
+    editable: true

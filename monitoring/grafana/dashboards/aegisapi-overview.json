@@ -1,0 +1,158 @@
+{
+  "uid": "aegisapi-overview",
+  "title": "AegisAPI — Security Overview",
+  "tags": ["aegisapi"],
+  "timezone": "",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Ingest rate by policy action",
+      "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+          "expr": "sum by (action) (rate(aegis_ingest_requests_total[5m]))",
+          "legendFormat": "{{action}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "piechart",
+      "title": "Request mix by action (cumulative)",
+      "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "values": ["value"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+          "expr": "sum by (action) (aegis_ingest_requests_total)",
+          "legendFormat": "{{action}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Anomaly rate",
+      "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+          "expr": "rate(aegis_anomalies_total[5m])",
+          "legendFormat": "anomalies/s"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Quarantine rejections",
+      "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+          "expr": "rate(aegis_quarantine_rejections_total[5m])",
+          "legendFormat": "rejections/s"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Risk & trust (p95 / p50)",
+      "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(aegis_risk_score_bucket[5m])))",
+          "legendFormat": "risk p95"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(aegis_trust_score_bucket[5m])))",
+          "legendFormat": "trust p50"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Total anomalies",
+      "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+          "expr": "aegis_anomalies_total",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Quarantine rejections (total)",
+      "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+          "expr": "aegis_quarantine_rejections_total",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Policy reloads (total)",
+      "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "aegis-prometheus" },
+          "expr": "aegis_policy_reloads_total",
+          "instant": true
+        }
+      ]
+    }
+  ]
+}

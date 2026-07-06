@@ -1,0 +1,52 @@
+# Prometheus alerting rules for AegisAPI (Phase 8, slice 3).
+#
+# Evaluated by Prometheus every `evaluation_interval` (see prometheus.yml).
+# Firing alerts show at http://localhost:9090/alerts. Routing them to Slack/email
+# needs Alertmanager, which is intentionally deferred (it belongs with the
+# docker-compose work in Phase 10).
+
+groups:
+  - name: aegisapi
+    rules:
+      # The app stopped responding to scrapes — nothing else matters if this fires.
+      - alert: AegisApiDown
+        expr: up{job="aegisapi"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "AegisAPI is not being scraped"
+          description: "Prometheus cannot reach the AegisAPI /metrics endpoint for over 1 minute."
+
+      # Sustained burst of ML-flagged anomalies — a possible attack in progress.
+      - alert: HighAnomalyRate
+        expr: rate(aegis_anomalies_total[5m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated anomaly rate"
+          description: "Anomalous events are being flagged at >0.2/s (~12/min) over the last 5m."
+
+      # A large share of traffic is being blocked or quarantined — either a real
+      # attack or a mis-tuned policy after a rule change.
+      - alert: HighBlockRate
+        expr: |
+          sum(rate(aegis_ingest_requests_total{action=~"BLOCK|QUARANTINE"}[5m]))
+            / sum(rate(aegis_ingest_requests_total[5m])) > 0.3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High block/quarantine rate"
+          description: "Over 30% of ingested traffic has been BLOCK/QUARANTINE over the last 5m."
+
+      # Quarantined subjects are still hammering the API and getting rejected.
+      - alert: QuarantineRejectionsActive
+        expr: rate(aegis_quarantine_rejections_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Quarantined subjects still sending traffic"
+          description: "Requests are being rejected up front due to active quarantine over the last 5m."
