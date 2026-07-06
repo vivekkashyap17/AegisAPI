@@ -1,0 +1,15 @@
+# AegisAPI console — dark ops-console theme (Phase 11, slice 1).
+[theme]
+base = "dark"
+primaryColor = "#2ad3bf"              # teal accent (perimeter identity)
+backgroundColor = "#0a1418"           # near-black petrol ground
+secondaryBackgroundColor = "#11242a"  # panels / inputs
+textColor = "#e4efed"
+
+[server]
+headless = true
+address = "0.0.0.0"
+port = 8501
+
+[browser]
+gatherUsageStats = false

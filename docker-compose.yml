@@ -151,6 +151,26 @@ services:
       - grafana-data:/var/lib/grafana
     restart: unless-stopped
 
+  # Security Operations Console (Phase 11): Streamlit UI. Calls the app directly
+  # over the internal network (server-side, so no CORS / no browser-held JWT).
+  dashboard:
+    build:
+      context: ./dashboard
+    environment:
+      API_BASE_URL: http://app:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8501/_stcore/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
 volumes:
   pg-data:
   prometheus-data:
