@@ -20,6 +20,7 @@ from app.services.anomaly import analyze_event
 from app.services.policy_rules import get_policy_rules, update_policy_rules
 from app.services.quarantine import get_quarantine, quarantine_user, release_user
 from app.services.metrics import record_ingest, record_rejection, record_policy_reload
+from app.services.events import publish_security_event
 
 router = APIRouter()
 
@@ -55,6 +56,20 @@ async def ingest_traffic(
         db.add(rejection)
         await db.flush()
         record_rejection(risk["risk_level"], risk["risk_score"])
+        await publish_security_event({
+            "request_id": str(rejection.id),
+            "timestamp": rejection.timestamp.isoformat(),
+            "user_id": event.user_id,
+            "endpoint": event.endpoint,
+            "method": event.method,
+            "ip_address": event.ip_address,
+            "risk_score": risk["risk_score"],
+            "risk_level": risk["risk_level"],
+            "trust_score": None,
+            "anomaly_detected": None,
+            "action": "QUARANTINE",
+            "reason": "Subject is quarantined; request rejected",
+        })
         return JSONResponse(
             status_code=403,
             content={
@@ -110,6 +125,21 @@ async def ingest_traffic(
         policy["action"], risk["risk_level"], risk["risk_score"],
         trust_score, anomaly["anomaly_detected"],
     )
+
+    await publish_security_event({
+        "request_id": str(audit_entry.id),
+        "timestamp": audit_entry.timestamp.isoformat(),
+        "user_id": event.user_id,
+        "endpoint": event.endpoint,
+        "method": event.method,
+        "ip_address": event.ip_address,
+        "risk_score": risk["risk_score"],
+        "risk_level": risk["risk_level"],
+        "trust_score": trust_score,
+        "anomaly_detected": anomaly["anomaly_detected"],
+        "action": policy["action"],
+        "reason": policy["reason"],
+    })
 
     return {
         "request_id": str(audit_entry.id),

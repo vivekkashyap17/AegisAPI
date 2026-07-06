@@ -12,6 +12,7 @@ from app.core.db import engine, Base
 from app.core.config import settings
 from app.core.redis import connect_redis, disconnect_redis, get_redis
 from app.services.policy_rules import seed_default_rules
+from app.services.events import start_producer, stop_producer
 from app.models import user  # noqa: F401
 
 logging.basicConfig(
@@ -35,11 +36,13 @@ async def lifespan(app: FastAPI):
     logger.info("Redis connected")
     await seed_default_rules(await get_redis())
     logger.info("Policy rules seeded")
+    await start_producer()
     logger.info(f"{settings.APP_NAME} is running")
 
     yield
 
     logger.info("Shutting down — disposing database connections...")
+    await stop_producer()
     await engine.dispose()
     await disconnect_redis()
     logger.info("Shutdown complete")
